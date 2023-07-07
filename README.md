@@ -72,7 +72,7 @@ The repository contains a ZIP archive with sample ground truth, see
 
 **NOTE:** If you want to generate line images for transcription from a full
 page, see tips in [issue 7](https://github.com/OCR-D/ocrd-train/issues/7) and
-in particular [@Shreeshrii's shell
+in particular [@Shreeshrii&#39;s shell
 script](https://github.com/OCR-D/ocrd-train/issues/7#issuecomment-419714852).
 
 ## Train
@@ -81,15 +81,14 @@ Run
 
     make training MODEL_NAME=name-of-the-resulting-model
 
-
 which is basically a shortcut for
 
     make unicharset lists proto-model tesseract-langdata training
 
-
 Run `make help` to see all the possible targets and variables:
 
 <!-- BEGIN-EVAL -w '```' '```' -- make help -->
+
 ```
 
   Targets
@@ -141,9 +140,10 @@ Run `make help` to see all the possible targets and variables:
 
 To override the default path name requirements, just set the respective variables in the above list:
 
-    make training MODEL_NAME=name-of-the-resulting-model DATA_DIR=/data GROUND_TRUTH_DIR=/data/GT
 
-If you want to use shell variables to override the make variables (for example because
+
+f you want to use shell variables to override the make variables (for example because
+
 you are running tesstrain from a script or other makefile), then you can use the `-e` flag:
 
     MODEL_NAME=name-of-the-resulting-model DATA_DIR=/data GROUND_TRUTH_DIR=/data/GT make -e training
@@ -183,13 +183,15 @@ Training and Evaluation CER can be plotted using matplotlib. A couple of scripts
 as a starting point in `plot` subdirectory for plotting of different training scenarios. The training
 log is expected to be saved in `plot/TESSTRAIN.LOG`.
 
-As an example, use the training data provided in 
+As an example, use the training data provided in
 [ocrd-testset.zip](./ocrd-testset.zip) to do training and generate the plots.
 Plotting can be done while training is running also to depict the training status till then.
+
 ```
 unzip ocrd-testset.zip -d data/ocrd-ground-truth
 nohup make training MODEL_NAME=ocrd START_MODEL=frk TESSDATA=~/tessdata_best MAX_ITERATIONS=10000 > plot/TESSTRAIN.LOG &
 ```
+
 ```
 cd ./plot
 ./plot_cer.sh 
