@@ -122,7 +122,8 @@ help:
 	@echo "    proto-model      Build the proto model"
 	@echo "    leptonica        Build leptonica"
 	@echo "    tesseract        Build tesseract"
-	@echo "    tesseract-langs  Download tesseract-langs"
+	@echo "    tesseract-langs  Download minimal stock models"
+	@echo "    tesseract-langdata  Download stock unicharsets"
 	@echo "    clean-box        Clean generated .box files"
 	@echo "    clean-lstmf      Clean generated .lstmf files"
 	@echo "    clean-output     Clean generated output files"
@@ -160,7 +161,7 @@ help:
 
 .PRECIOUS: $(OUTPUT_DIR)/checkpoints/$(MODEL_NAME)*_checkpoint
 
-.PHONY: clean help leptonica lists proto-model tesseract tesseract-langs training unicharset
+.PHONY: clean help leptonica lists proto-model tesseract tesseract-langs tesseract-langdata training unicharset
 
 ALL_GT = $(OUTPUT_DIR)/all-gt
 ALL_LSTMF = $(OUTPUT_DIR)/all-lstmf
@@ -186,14 +187,17 @@ $(OUTPUT_DIR)/list.train: $(ALL_LSTMF)
 	  tail -n "$$eval" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.eval"
 
 ifdef START_MODEL
-$(OUTPUT_DIR)/unicharset: $(ALL_GT)
-	@mkdir -p $(DATA_DIR)/$(START_MODEL)
-	combine_tessdata -u $(TESSDATA)/$(START_MODEL).traineddata  $(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME)
-	unicharset_extractor --output_unicharset "$(OUTPUT_DIR)/my.unicharset" --norm_mode $(NORM_MODE) "$(ALL_GT)"
-	merge_unicharsets $(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME).lstm-unicharset $(OUTPUT_DIR)/my.unicharset  "$@"
+$(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME).lstm-unicharset:
+	@mkdir -p $(@D)
+	combine_tessdata -u $(TESSDATA)/$(START_MODEL).traineddata $(basename $@)
+$(OUTPUT_DIR)/my.unicharset: $(ALL_GT)
+	@mkdir -p $(@D)
+	unicharset_extractor --output_unicharset "$@" --norm_mode $(NORM_MODE) "$^"
+$(OUTPUT_DIR)/unicharset: $(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME).lstm-unicharset $(OUTPUT_DIR)/my.unicharset
+	merge_unicharsets $^ "$@"
 else
 $(OUTPUT_DIR)/unicharset: $(ALL_GT)
-	@mkdir -p $(OUTPUT_DIR)
+	@mkdir -p $(@D)
 	unicharset_extractor --output_unicharset "$@" --norm_mode $(NORM_MODE) "$(ALL_GT)"
 endif
 
@@ -261,7 +265,7 @@ $(OUTPUT_DIR)/tessdata_fast/%.traineddata: $(OUTPUT_DIR)/checkpoints/%.checkpoin
 # Build the proto model
 proto-model: $(PROTO_MODEL)
 
-$(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(DATA_DIR)/radical-stroke.txt
+$(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(TESSERACT_LANGDATA)
 	combine_lang_model \
 	  --input_unicharset $(OUTPUT_DIR)/unicharset \
 	  --script_dir $(DATA_DIR) \
@@ -313,8 +317,14 @@ $(OUTPUT_DIR).traineddata: $(LAST_CHECKPOINT)
 	--model_output $@
 endif
 
-$(DATA_DIR)/radical-stroke.txt:
-	wget -O$@ 'https://github.com/tesseract-ocr/langdata_lstm/raw/master/radical-stroke.txt'
+TESSERACT_SCRIPTS := Arabic Armenian Bengali Bopomofo Canadian_Aboriginal Cherokee Cyrillic Devanagari Ethiopic Georgian Greek Gujarati Gurmukhi Hangul Han Hebrew Hiragana Kannada Katakana Khmer Lao Latin Malayalam Myanmar Ogham Oriya Runic Sinhala Syriac Tamil Telugu Thai
+
+TESSERACT_LANGDATA = $(DATA_DIR)/radical-stroke.txt $(TESSERACT_SCRIPTS:%=$(DATA_DIR)/%.unicharset)
+
+tesseract-langdata: $(TESSERACT_LANGDATA)
+
+$(TESSERACT_LANGDATA):
+	wget -O $@ 'https://github.com/tesseract-ocr/langdata_lstm/raw/master/$(@F)'
 
 # Build leptonica
 leptonica: leptonica.built
@@ -352,8 +362,8 @@ tesseract-$(TESSERACT_VERSION):
 # Download tesseract-langs
 tesseract-langs: $(TESSDATA)/eng.traineddata
 
-$(TESSDATA)/eng.traineddata:
-	cd $(TESSDATA) && wget https://github.com/tesseract-ocr/tessdata$(TESSDATA_REPO)/raw/master/$(notdir $@)
+$(TESSDATA)/%.traineddata:
+	wget -O $@ 'https://github.com/tesseract-ocr/tessdata$(TESSDATA_REPO)/raw/master/$(@F)'
 
 # Clean generated .box files
 .PHONY: clean-box
