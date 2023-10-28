@@ -12,7 +12,7 @@ LOCAL := $(PWD)/usr
 PATH := $(LOCAL)/bin:$(PATH)
 
 # Path to the .traineddata directory with traineddata suitable for training 
-# (for example from tesseract-ocr/tessdata_best). Default: $(LOCAL)/share/tessdata
+# (for example from tesseract-ocr/tessdata_best). Default: $(TESSDATA)
 TESSDATA =  $(LOCAL)/share/tessdata
 
 # Name of the model to be built. Default: $(MODEL_NAME)
@@ -56,7 +56,7 @@ LEPTONICA_VERSION := 1.80.0
 # Tesseract commit. Default: $(TESSERACT_VERSION)
 TESSERACT_VERSION := 4.1.1
 
-# Tesseract model repo to use. Default: $(TESSDATA_REPO)
+# Tesseract model repo to use (_fast or _best). Default: $(TESSDATA_REPO)
 TESSDATA_REPO = _best
 
 # If EPOCHS is given, it is used to set MAX_ITERATIONS.
