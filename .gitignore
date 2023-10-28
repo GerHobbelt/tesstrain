@@ -24,6 +24,11 @@ plot/*.LOG
 plot/ocrd*
 __pycache__
 *.egg-info
+tesstrain_gui.ini
+gui
+src
+ocrd-testset/*.box
+ocrd-testset/*.lstmf
 
 # ignore temporary training data
 *checkpoints*
