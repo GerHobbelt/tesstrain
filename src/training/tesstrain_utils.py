@@ -53,7 +53,7 @@ class TrainingArgs(argparse.Namespace):
         self.linedata = False
         self.run_shape_clustering = False
         self.extract_font_properties = True
-
+        self.distort_image = False
 
 def err_exit(msg):
     log.critical(msg)
@@ -170,6 +170,10 @@ inputdata_group.add_argument(
 parser.add_argument("--extract_font_properties", action="store_true")
 parser.add_argument(
     "--noextract_font_properties", dest="extract_font_properties", action="store_false"
+)
+
+parser.add_argument(
+    "--distort_image", dest="distort_image", help="set --distort_image=true."
 )
 
 tessdata_group = parser.add_argument_group(
@@ -310,6 +314,7 @@ def generate_font_image(ctx, font, exposure, char_spacing):
         f"--exposure={exposure}",
         f"--outputbase={outbase}",
         f"--max_pages={ctx.max_pages}",
+        f"--distort_image={ctx.distort_image}",
     ]
 
     # add --writing_mode=vertical-upright to common_args if the font is
@@ -374,7 +379,7 @@ def phase_I_generate_image(ctx, par_factor):
 
         with tqdm(
             total=len(ctx.fonts)
-        ) as pbar, concurrent.futures.ThreadPoolExecutor() as executor:
+         ) as pbar, concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             futures = [
                 executor.submit(generate_font_image, ctx, font, exposure, char_spacing)
                 for font in ctx.fonts
