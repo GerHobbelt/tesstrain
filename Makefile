@@ -112,6 +112,13 @@ RATIO_TRAIN := 0.90
 # Default Target Error Rate. Default: $(TARGET_ERROR_RATE)
 TARGET_ERROR_RATE := 0.01
 
+#Use corrent python program name on Windows
+ifeq ($(OS),Windows_NT)
+    PY_CMD := python
+else
+    PY_CMD := python3
+endif
+
 # BEGIN-EVAL makefile-parser --make-help Makefile
 
 help:
@@ -197,7 +204,12 @@ $(OUTPUT_DIR)/list.train: $(ALL_LSTMF) | $(OUTPUT_DIR)
 	    echo "Error: missing ground truth for evaluation" && exit 1; \
 	  set -x; \
 	  head -n "$$train" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.train"; \
-	  tail -n "$$eval" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.eval"
+	  tail -n "$$eval" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.eval"; \
+	if [ "$(OS)" = "Windows_NT" ]; then \
+		dos2unix "$(ALL_LSTMF)"; \
+		dos2unix "$(OUTPUT_DIR)/list.train"; \
+		dos2unix "$(OUTPUT_DIR)/list.eval"; \
+	fi
 
 ifdef START_MODEL
 $(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME).lstm-unicharset:
@@ -221,25 +233,25 @@ $(ALL_GT): $(ALL_FILES) | $(OUTPUT_DIR)
 
 .PRECIOUS: %.box
 %.box: %.png %.gt.txt
-	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.png" -t "$*.gt.txt" > "$@"
+	PYTHONIOENCODING=utf-8 $(PY_CMD) $(GENERATE_BOX_SCRIPT) -i "$*.png" -t "$*.gt.txt" > "$@"
 
 %.box: %.bin.png %.gt.txt
-	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.bin.png" -t "$*.gt.txt" > "$@"
+	PYTHONIOENCODING=utf-8 $(PY_CMD) $(GENERATE_BOX_SCRIPT) -i "$*.bin.png" -t "$*.gt.txt" > "$@"
 
 %.box: %.nrm.png %.gt.txt
-	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.nrm.png" -t "$*.gt.txt" > "$@"
+	PYTHONIOENCODING=utf-8 $(PY_CMD) $(GENERATE_BOX_SCRIPT) -i "$*.nrm.png" -t "$*.gt.txt" > "$@"
 
 %.box: %.raw.png %.gt.txt
-	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.raw.png" -t "$*.gt.txt" > "$@"
+	PYTHONIOENCODING=utf-8 $(PY_CMD) $(GENERATE_BOX_SCRIPT) -i "$*.raw.png" -t "$*.gt.txt" > "$@"
 
 %.box: %.tif %.gt.txt
-	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.tif" -t "$*.gt.txt" > "$@"
+	PYTHONIOENCODING=utf-8 $(PY_CMD) $(GENERATE_BOX_SCRIPT) -i "$*.tif" -t "$*.gt.txt" > "$@"
 
 $(ALL_LSTMF): $(ALL_FILES:%.gt.txt=%.lstmf)
 	$(if $^,,$(error found no $(GROUND_TRUTH_DIR)/*.lstmf for $@))
 	@mkdir -p $(@D)
 	$(file >$@) $(foreach F,$^,$(file >>$@,$F))
-	python3 shuffle.py $(RANDOM_SEED) "$@"
+	$(PY_CMD) shuffle.py $(RANDOM_SEED) "$@"
 
 .PRECIOUS: %.lstmf
 %.lstmf: %.png %.box
@@ -290,6 +302,12 @@ $(OUTPUT_DIR)/tessdata_fast/%.traineddata: $(OUTPUT_DIR)/checkpoints/%.checkpoin
 proto-model: $(PROTO_MODEL)
 
 $(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(TESSERACT_LANGDATA)
+	if [ "$(OS)" = "Windows_NT" ]; then \
+		dos2unix "$(NUMBERS_FILE)"; \
+		dos2unix "$(PUNC_FILE)"; \
+		dos2unix "$(WORDLIST_FILE)"; \
+		dos2unix "$(LANGDATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).config"; \
+	fi
 	combine_lang_model \
 	  --input_unicharset $(OUTPUT_DIR)/unicharset \
 	  --script_dir $(LANGDATA_DIR) \
