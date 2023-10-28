@@ -119,6 +119,7 @@ help:
 	@echo "  Targets"
 	@echo ""
 	@echo "    unicharset       Create unicharset"
+	@echo "    charfreq         Show character histogram"
 	@echo "    lists            Create lists of lstmf filenames for training and eval"
 	@echo "    training         Start training"
 	@echo "    traineddata      Create best and fast .traineddata files from each .checkpoint file"
@@ -165,14 +166,19 @@ help:
 
 .PRECIOUS: $(OUTPUT_DIR)/checkpoints/$(MODEL_NAME)*_checkpoint
 
-.PHONY: clean help leptonica lists proto-model tesseract tesseract-langs tesseract-langdata training unicharset
+.PHONY: clean help leptonica lists proto-model tesseract tesseract-langs tesseract-langdata training unicharset charfreq
 
 ALL_FILES = $(and $(wildcard $(GROUND_TRUTH_DIR)),$(shell find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt'))
+unexport ALL_FILES # prevent adding this to envp in recipes (which can cause E2BIG if too long; cf. make #44853)
 ALL_GT = $(OUTPUT_DIR)/all-gt
 ALL_LSTMF = $(OUTPUT_DIR)/all-lstmf
 
 # Create unicharset
 unicharset: $(OUTPUT_DIR)/unicharset
+
+# Show character histogram
+charfreq: $(ALL_GT)
+	LC_ALL=C.UTF-8 grep -o . $< | sort | uniq -c | sort -rn
 
 # Create lists of lstmf filenames for training and eval
 lists: $(OUTPUT_DIR)/list.train $(OUTPUT_DIR)/list.eval
@@ -210,9 +216,9 @@ endif
 training: $(OUTPUT_DIR).traineddata
 
 $(ALL_GT): $(ALL_FILES)
-	$(if $^,:,$(error found no $(GROUND_TRUTH_DIR)/*.gt.txt for $@))
+	$(if $^,,$(error found no $(GROUND_TRUTH_DIR)/*.gt.txt for $@))
 	@mkdir -p $(@D)
-	paste -s $^ > "$@"
+	$(file >$@) $(foreach F,$^,$(file >>$@,$(file <$F)))
 
 .PRECIOUS: %.box
 %.box: %.png %.gt.txt
@@ -228,9 +234,10 @@ $(ALL_GT): $(ALL_FILES)
 	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.tif" -t "$*.gt.txt" > "$@"
 
 $(ALL_LSTMF): $(ALL_FILES:%.gt.txt=%.lstmf)
-	$(if $^,:,$(error found no $(GROUND_TRUTH_DIR)/*.lstmf for $@))
+	$(if $^,,$(error found no $(GROUND_TRUTH_DIR)/*.lstmf for $@))
 	@mkdir -p $(@D)
-	paste -s $^ | python3 shuffle.py $(RANDOM_SEED) > "$@"
+	$(file >$@) $(foreach F,$^,$(file >>$@,$F))
+	python3 shuffle.py $(RANDOM_SEED) "$@"
 
 %.lstmf: %.box
 	@if test -f "$*.png"; then \
@@ -334,6 +341,7 @@ TESSERACT_LANGDATA = $(LANGDATA_DIR)/radical-stroke.txt $(TESSERACT_SCRIPTS:%=$(
 tesseract-langdata: $(TESSERACT_LANGDATA)
 
 $(TESSERACT_LANGDATA):
+	@mkdir -p $(@D)
 	wget -O $@ 'https://github.com/tesseract-ocr/langdata_lstm/raw/main/$(@F)'
 
 # Build leptonica
