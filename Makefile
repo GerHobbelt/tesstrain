@@ -21,6 +21,9 @@ MODEL_NAME = foo
 # Data directory for output files, proto model, start model, etc. Default: $(DATA_DIR)
 DATA_DIR = data
 
+# Data directory for langdata (downloaded from Tesseract langdata repo). Default: $(LANGDATA_DIR)
+LANGDATA_DIR = $(DATA_DIR)/langdata
+
 # Output directory for generated files. Default: $(OUTPUT_DIR)
 OUTPUT_DIR = $(DATA_DIR)/$(MODEL_NAME)
 
@@ -135,6 +138,7 @@ help:
 	@echo "                       (for example from tesseract-ocr/tessdata_best). Default: $(TESSDATA)"
 	@echo "    MODEL_NAME         Name of the model to be built. Default: $(MODEL_NAME)"
 	@echo "    DATA_DIR           Data directory for output files, proto model, start model, etc. Default: $(DATA_DIR)"
+	@echo "    LANGDATA_DIR       Data directory for langdata (downloaded from Tesseract langdata repo). Default: $(LANGDATA_DIR)"
 	@echo "    OUTPUT_DIR         Output directory for generated files. Default: $(OUTPUT_DIR)"
 	@echo "    GROUND_TRUTH_DIR   Ground truth directory. Default: $(GROUND_TRUTH_DIR)"
 	@echo "    WORDLIST_FILE      Optional Wordlist file for Dictionary dawg. Default: $(WORDLIST_FILE)"
@@ -163,6 +167,7 @@ help:
 
 .PHONY: clean help leptonica lists proto-model tesseract tesseract-langs tesseract-langdata training unicharset
 
+ALL_FILES = $(and $(wildcard $(GROUND_TRUTH_DIR)),$(shell find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt'))
 ALL_GT = $(OUTPUT_DIR)/all-gt
 ALL_LSTMF = $(OUTPUT_DIR)/all-lstmf
 
@@ -204,9 +209,10 @@ endif
 # Start training
 training: $(OUTPUT_DIR).traineddata
 
-$(ALL_GT): $(shell find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt')
-	@mkdir -p $(OUTPUT_DIR)
-	find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt' | xargs paste -s > "$@"
+$(ALL_GT): $(ALL_FILES)
+	$(if $^,:,$(error found no $(GROUND_TRUTH_DIR)/*.gt.txt for $@))
+	@mkdir -p $(@D)
+	paste -s $^ > "$@"
 
 .PRECIOUS: %.box
 %.box: %.png %.gt.txt
@@ -221,9 +227,10 @@ $(ALL_GT): $(shell find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt')
 %.box: %.tif %.gt.txt
 	PYTHONIOENCODING=utf-8 python3 $(GENERATE_BOX_SCRIPT) -i "$*.tif" -t "$*.gt.txt" > "$@"
 
-$(ALL_LSTMF): $(patsubst %.gt.txt,%.lstmf,$(shell find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt'))
-	@mkdir -p $(OUTPUT_DIR)
-	find -L $(GROUND_TRUTH_DIR) -name '*.lstmf' | python3 shuffle.py $(RANDOM_SEED) > "$@"
+$(ALL_LSTMF): $(ALL_FILES:%.gt.txt=%.lstmf)
+	$(if $^,:,$(error found no $(GROUND_TRUTH_DIR)/*.lstmf for $@))
+	@mkdir -p $(@D)
+	paste -s $^ | python3 shuffle.py $(RANDOM_SEED) > "$@"
 
 %.lstmf: %.box
 	@if test -f "$*.png"; then \
@@ -268,7 +275,7 @@ proto-model: $(PROTO_MODEL)
 $(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(TESSERACT_LANGDATA)
 	combine_lang_model \
 	  --input_unicharset $(OUTPUT_DIR)/unicharset \
-	  --script_dir $(DATA_DIR) \
+	  --script_dir $(LANGDATA_DIR) \
 	  --numbers $(NUMBERS_FILE) \
 	  --puncs $(PUNC_FILE) \
 	  --words $(WORDLIST_FILE) \
@@ -317,9 +324,12 @@ $(OUTPUT_DIR).traineddata: $(LAST_CHECKPOINT)
 	--model_output $@
 endif
 
-TESSERACT_SCRIPTS := Arabic Armenian Bengali Bopomofo Canadian_Aboriginal Cherokee Cyrillic Devanagari Ethiopic Georgian Greek Gujarati Gurmukhi Hangul Han Hebrew Hiragana Kannada Katakana Khmer Lao Latin Malayalam Myanmar Ogham Oriya Runic Sinhala Syriac Tamil Telugu Thai
+TESSERACT_SCRIPTS := Arabic Armenian Bengali Bopomofo Canadian_Aboriginal Cherokee Cyrillic
+TESSERACT_SCRIPTS += Devanagari Ethiopic Georgian Greek Gujarati Gurmukhi
+TESSERACT_SCRIPTS += Hangul Han Hebrew Hiragana Kannada Katakana Khmer Lao Latin
+TESSERACT_SCRIPTS += Malayalam Myanmar Ogham Oriya Runic Sinhala Syriac Tamil Telugu Thai
 
-TESSERACT_LANGDATA = $(DATA_DIR)/radical-stroke.txt $(TESSERACT_SCRIPTS:%=$(DATA_DIR)/%.unicharset)
+TESSERACT_LANGDATA = $(LANGDATA_DIR)/radical-stroke.txt $(TESSERACT_SCRIPTS:%=$(LANGDATA_DIR)/%.unicharset)
 
 tesseract-langdata: $(TESSERACT_LANGDATA)
 
