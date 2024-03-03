@@ -79,15 +79,14 @@ Run
 
     make training MODEL_NAME=name-of-the-resulting-model
 
-
 which is basically a shortcut for
 
     make unicharset lists proto-model tesseract-langdata training
 
-
 Run `make help` to see all the possible targets and variables:
 
 <!-- BEGIN-EVAL -w '```' '```' -- make help -->
+
 ```
 
   Targets
@@ -178,13 +177,15 @@ Training and Evaluation CER can be plotted using matplotlib. A couple of scripts
 as a starting point in `plot` subdirectory for plotting of different training scenarios. The training
 log is expected to be saved in `plot/TESSTRAIN.LOG`.
 
-As an example, use the training data provided in 
+As an example, use the training data provided in
 [ocrd-testset.zip](./ocrd-testset.zip) to do training and generate the plots.
 Plotting can be done while training is running also to depict the training status till then.
+
 ```
 unzip ocrd-testset.zip -d data/ocrd-ground-truth
 nohup make training MODEL_NAME=ocrd START_MODEL=frk TESSDATA=~/tessdata_best MAX_ITERATIONS=10000 > plot/TESSTRAIN.LOG &
 ```
+
 ```
 cd ./plot
 ./plot_cer.sh 
