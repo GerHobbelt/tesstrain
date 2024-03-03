@@ -83,7 +83,7 @@ Execute the `tesstrain_gui.ahk` and follow the displayed instructions.
 
 # tesstrain
 
-> Training workflow for Tesseract 4 as a Makefile for dependency tracking and building the required software from source.
+> Training workflow for Tesseract 5 as a Makefile for dependency tracking.
 
 ## Install
 
@@ -93,27 +93,15 @@ You will need at least GNU `make` (minimal version 4.2), `wget`, `find`, `bash`,
 
 ### Leptonica, Tesseract
 
-You will need a recent version (>= 4.0.0beta1) of tesseract built with the
+You will need a recent version (>= 5.3) of tesseract built with the
 training tools and matching leptonica bindings.
-[Build](https://github.com/tesseract-ocr/tesseract/wiki/Compiling)
-[instructions](https://github.com/tesseract-ocr/tesseract/wiki/Compiling-%E2%80%93-GitInstallation)
-and more can be found in the [Tesseract project
-wiki](https://github.com/tesseract-ocr/tesseract/wiki/).
-
-Alternatively, you can build leptonica and tesseract within this project and install it to a subdirectory `./usr` in the repo:
-
-```sh
-  make leptonica tesseract
-```
-
-Tesseract will be built from the git repository, which requires CMake,
-autotools (including autotools-archive) and some additional libraries for the
-training tools. See the [installation notes in the tesseract
-repository](https://github.com/tesseract-ocr/tesseract/blob/main/INSTALL.GIT.md).
+[Build](https://tesseract-ocr.github.io/tessdoc/Compiling)
+[instructions](https://tesseract-ocr.github.io/tessdoc/Compiling-%E2%80%93-GitInstallation)
+and more can be found in the [Tesseract User Manual](https://tesseract-ocr.github.io/tessdoc/).
 
 #### Windows
 
-  1. Install the latest tesseract (e.g. from https://digi.bib.uni-mannheim.de/tesseract/) make sure that tesseract is add to your PATH.
+  1. Install the latest tesseract (e.g. from https://digi.bib.uni-mannheim.de/tesseract/), make sure that tesseract is added to your PATH.
   2. Install [Python 3](https://www.python.org/downloads/)
   3. Install [Git SCM to Windows](https://gitforwindows.org/) - it provides a lot of linux utilities on Windows (e.g. `find`, `unzip`, `rm`) and put `C:\Program Files\Git\usr\bin` to the begining of your PATH variable (temporarely you can do it in `cmd` with `set PATH=C:\Program Files\Git\usr\bin;%PATH%` - unfornatelly there are several Windows tools with the same name as on linux (`find`, `sort`) with different behaviour/functionality and there is need to avoid them during training.
   4. Install winget/[Windows Package Manager](https://github.com/microsoft/winget-cli/releases/) and then run `winget install GnuWin32.Make` and `winget install wget` to install missing tools.
@@ -174,15 +162,14 @@ Run
 
     make training MODEL_NAME=name-of-the-resulting-model
 
-
 which is basically a shortcut for
 
     make unicharset lists proto-model tesseract-langdata training
 
-
 Run `make help` to see all the possible targets and variables:
 
 <!-- BEGIN-EVAL -w '```' '```' -- make help -->
+
 ```
 
   Targets
@@ -193,9 +180,6 @@ Run `make help` to see all the possible targets and variables:
     training         Start training
     traineddata      Create best and fast .traineddata files from each .checkpoint file
     proto-model      Build the proto model
-    leptonica        Build leptonica
-    tesseract        Build tesseract
-    tesseract-langs  Download minimal stock models
     tesseract-langdata  Download stock unicharsets
     clean-box        Clean generated .box files
     clean-lstmf      Clean generated .lstmf files
@@ -215,9 +199,6 @@ Run `make help` to see all the possible targets and variables:
     PUNC_FILE          Optional Punc file for Punctuation dawg. Default: data/foo/foo.punc
     START_MODEL        Name of the model to continue from. Default: ''
     PROTO_MODEL        Name of the proto model. Default: 'data/foo/foo.traineddata'
-    CORES              No of cores to use for compiling leptonica/tesseract. Default: 4
-    LEPTONICA_VERSION  Leptonica version. Default: 1.80.0
-    TESSERACT_VERSION  Tesseract commit. Default: 4.1.1
     TESSDATA_REPO      Tesseract model repo to use (_fast or _best). Default: _best
     MAX_ITERATIONS     Max iterations. Default: 10000
     EPOCHS             Set max iterations based on the number of lines for the training. Default: none
@@ -279,13 +260,15 @@ Training and Evaluation CER can be plotted using matplotlib. A couple of scripts
 as a starting point in `plot` subdirectory for plotting of different training scenarios. The training
 log is expected to be saved in `plot/TESSTRAIN.LOG`.
 
-As an example, use the training data provided in 
+As an example, use the training data provided in
 [ocrd-testset.zip](./ocrd-testset.zip) to do training and generate the plots.
 Plotting can be done while training is running also to depict the training status till then.
+
 ```
 unzip ocrd-testset.zip -d data/ocrd-ground-truth
 nohup make training MODEL_NAME=ocrd START_MODEL=frk TESSDATA=~/tessdata_best MAX_ITERATIONS=10000 > plot/TESSTRAIN.LOG &
 ```
+
 ```
 cd ./plot
 ./plot_cer.sh 
