@@ -163,17 +163,16 @@ help: default
 
 # END-EVAL
 
-default:
 ifeq (4.2, $(firstword $(sort $(MAKE_VERSION) 4.2)))
-   # stuff that requires make-3.81 or higher
-	@echo "    You are using make version: $(MAKE_VERSION)"
+# stuff that requires make-3.81 or higher
+$(info You are using make version: $(MAKE_VERSION))
 else
-	$(error This version of GNU Make is too low ($(MAKE_VERSION)). Check your path, or upgrade to 4.2 or newer.)
+$(error This version of GNU Make is too low ($(MAKE_VERSION)). Check your path, or upgrade to 4.2 or newer.)
 endif
 
 .PRECIOUS: $(LAST_CHECKPOINT)
 
-.PHONY: default clean help lists proto-model tesseract-langdata training unicharset charfreq
+.PHONY: clean help lists proto-model tesseract-langdata training unicharset charfreq
 
 ALL_FILES = $(and $(wildcard $(GROUND_TRUTH_DIR)),$(shell find -L $(GROUND_TRUTH_DIR) -name '*.gt.txt'))
 unexport ALL_FILES # prevent adding this to envp in recipes (which can cause E2BIG if too long; cf. make #44853)
@@ -181,10 +180,10 @@ ALL_GT = $(OUTPUT_DIR)/all-gt
 ALL_LSTMF = $(OUTPUT_DIR)/all-lstmf
 
 # Create unicharset
-unicharset: default $(OUTPUT_DIR)/unicharset
+unicharset: $(OUTPUT_DIR)/unicharset
 
 # Show character histogram
-charfreq: default $(ALL_GT)
+charfreq: $(ALL_GT)
 	LC_ALL=C.UTF-8 grep -o . $< | sort | uniq -c | sort -rn
 
 # Create lists of lstmf filenames for training and eval
@@ -203,13 +202,14 @@ $(OUTPUT_DIR)/list.train: $(ALL_LSTMF) | $(OUTPUT_DIR)
 	  test "$$eval" = "0" && \
 	    echo "Error: missing ground truth for evaluation" && exit 1; \
 	  set -x; \
-	  head -n "$$train" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.train"; \
-	  tail -n "$$eval" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.eval"; \
-	if [ "$(OS)" = "Windows_NT" ]; then \
-		dos2unix "$(ALL_LSTMF)"; \
-		dos2unix "$(OUTPUT_DIR)/list.train"; \
-		dos2unix "$(OUTPUT_DIR)/list.eval"; \
-	fi
+	  head -n "$$train" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.train" && \
+	  tail -n "$$eval" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.eval"
+ifeq (Windows_NT, $(OS))
+	dos2unix "$(ALL_LSTMF)"
+	dos2unix "$(OUTPUT_DIR)/list.train"
+	dos2unix "$(OUTPUT_DIR)/list.eval"
+endif
+
 
 ifdef START_MODEL
 $(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME).lstm-unicharset:
@@ -225,7 +225,7 @@ $(OUTPUT_DIR)/unicharset: $(ALL_GT) | $(OUTPUT_DIR)
 endif
 
 # Start training
-training: default $(OUTPUT_DIR).traineddata
+training: $(OUTPUT_DIR).traineddata
 
 $(ALL_GT): $(ALL_FILES) | $(OUTPUT_DIR)
 	$(if $^,,$(error found no $(GROUND_TRUTH_DIR)/*.gt.txt for $@))
@@ -297,12 +297,14 @@ $(OUTPUT_DIR)/tessdata_fast/%.traineddata: $(OUTPUT_DIR)/checkpoints/%.checkpoin
 proto-model: $(PROTO_MODEL)
 
 $(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(TESSERACT_LANGDATA)
-	if [ "$(OS)" = "Windows_NT" ]; then \
-		dos2unix "$(NUMBERS_FILE)"; \
-		dos2unix "$(PUNC_FILE)"; \
-		dos2unix "$(WORDLIST_FILE)"; \
-		dos2unix "$(LANGDATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).config"; \
-	fi
+ifeq (Windows_NT, $(OS))
+	dos2unix "$(NUMBERS_FILE)"
+	dos2unix "$(PUNC_FILE)"
+	dos2unix "$(WORDLIST_FILE)"
+	dos2unix "$(LANGDATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).config"
+endif
+	$(if $(filter-out $(realpath $@),$(realpath $(DATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).traineddata)),\
+	$(error $@!=$(DATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).traineddata -- consider setting different values for DATA_DIR, OUTPUT_DIR, or PROTO_MODEL))
 	combine_lang_model \
 	  --input_unicharset $(OUTPUT_DIR)/unicharset \
 	  --script_dir $(LANGDATA_DIR) \
@@ -316,6 +318,7 @@ $(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(TESSERACT_LANGDATA)
 ifdef START_MODEL
 $(LAST_CHECKPOINT): unicharset lists $(PROTO_MODEL)
 	@mkdir -p $(OUTPUT_DIR)/checkpoints
+	@echo
 	lstmtraining \
 	  --debug_interval $(DEBUG_INTERVAL) \
 	  --traineddata $(PROTO_MODEL) \
@@ -328,6 +331,7 @@ $(LAST_CHECKPOINT): unicharset lists $(PROTO_MODEL)
 	  --max_iterations $(MAX_ITERATIONS) \
 	  --target_error_rate $(TARGET_ERROR_RATE)
 $(OUTPUT_DIR).traineddata: $(LAST_CHECKPOINT)
+	@echo
 	lstmtraining \
 	--stop_training \
 	--continue_from $(LAST_CHECKPOINT) \
@@ -336,6 +340,7 @@ $(OUTPUT_DIR).traineddata: $(LAST_CHECKPOINT)
 else
 $(LAST_CHECKPOINT): unicharset lists $(PROTO_MODEL)
 	@mkdir -p $(OUTPUT_DIR)/checkpoints
+	@echo
 	lstmtraining \
 	  --debug_interval $(DEBUG_INTERVAL) \
 	  --traineddata $(PROTO_MODEL) \
@@ -347,6 +352,7 @@ $(LAST_CHECKPOINT): unicharset lists $(PROTO_MODEL)
 	  --max_iterations $(MAX_ITERATIONS) \
 	  --target_error_rate $(TARGET_ERROR_RATE)
 $(OUTPUT_DIR).traineddata: $(LAST_CHECKPOINT)
+	@echo
 	lstmtraining \
 	--stop_training \
 	--continue_from $(LAST_CHECKPOINT) \
@@ -379,4 +385,4 @@ clean-output:
 	rm -rf $(OUTPUT_DIR)
 
 # Clean all generated files
-clean: default clean-box clean-lstmf clean-output
+clean: clean-box clean-lstmf clean-output
