@@ -110,7 +110,7 @@ RATIO_TRAIN := 0.90
 # Default Target Error Rate. Default: $(TARGET_ERROR_RATE)
 TARGET_ERROR_RATE := 0.01
 
-#Use corrent python program name on Windows
+# Use current Python program name on Windows
 ifeq ($(OS),Windows_NT)
     PY_CMD := python
 else
@@ -119,7 +119,7 @@ endif
 
 # BEGIN-EVAL makefile-parser --make-help Makefile
 
-help: default
+help:
 	@echo ""
 	@echo "  Targets"
 	@echo ""
@@ -194,22 +194,7 @@ $(OUTPUT_DIR):
 
 $(OUTPUT_DIR)/list.eval \
 $(OUTPUT_DIR)/list.train: $(ALL_LSTMF) | $(OUTPUT_DIR)
-	@total=$$(wc -l < $(ALL_LSTMF)); \
-	  train=$$(echo "$$total * $(RATIO_TRAIN) / 1" | bc); \
-	  test "$$train" = "0" && \
-	    echo "Error: missing ground truth for training" && exit 1; \
-	  eval=$$(echo "$$total - $$train" | bc); \
-	  test "$$eval" = "0" && \
-	    echo "Error: missing ground truth for evaluation" && exit 1; \
-	  set -x; \
-	  head -n "$$train" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.train" && \
-	  tail -n "$$eval" $(ALL_LSTMF) > "$(OUTPUT_DIR)/list.eval"
-ifeq (Windows_NT, $(OS))
-	dos2unix "$(ALL_LSTMF)"
-	dos2unix "$(OUTPUT_DIR)/list.train"
-	dos2unix "$(OUTPUT_DIR)/list.eval"
-endif
-
+	$(PY_CMD) generate_eval_train.py $(ALL_LSTMF) $(RATIO_TRAIN)
 
 ifdef START_MODEL
 $(DATA_DIR)/$(START_MODEL)/$(MODEL_NAME).lstm-unicharset:
@@ -298,12 +283,12 @@ proto-model: $(PROTO_MODEL)
 
 $(PROTO_MODEL): $(OUTPUT_DIR)/unicharset $(TESSERACT_LANGDATA)
 ifeq (Windows_NT, $(OS))
-	dos2unix "$(NUMBERS_FILE)"
-	dos2unix "$(PUNC_FILE)"
-	dos2unix "$(WORDLIST_FILE)"
-	dos2unix "$(LANGDATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).config"
+	- dos2unix "$(NUMBERS_FILE)"
+	- dos2unix "$(PUNC_FILE)"
+	- dos2unix "$(WORDLIST_FILE)"
+	- dos2unix "$(LANGDATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).config"
 endif
-	$(if $(filter-out $(realpath $@),$(realpath $(DATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).traineddata)),\
+	$(if $(filter-out $(abspath $@),$(abspath $(DATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).traineddata)),\
 	$(error $@!=$(DATA_DIR)/$(MODEL_NAME)/$(MODEL_NAME).traineddata -- consider setting different values for DATA_DIR, OUTPUT_DIR, or PROTO_MODEL))
 	combine_lang_model \
 	  --input_unicharset $(OUTPUT_DIR)/unicharset \
@@ -345,7 +330,7 @@ $(LAST_CHECKPOINT): unicharset lists $(PROTO_MODEL)
 	  --debug_interval $(DEBUG_INTERVAL) \
 	  --traineddata $(PROTO_MODEL) \
 	  --learning_rate $(LEARNING_RATE) \
-	  --net_spec "$(subst c###,c`head -n1 $(OUTPUT_DIR)/unicharset`,$(NET_SPEC))" \
+	  --net_spec "$(subst c###,c$(firstword $(file <$(OUTPUT_DIR)/unicharset)),$(NET_SPEC))" \
 	  --model_output $(OUTPUT_DIR)/checkpoints/$(MODEL_NAME) \
 	  --train_listfile $(OUTPUT_DIR)/list.train \
 	  --eval_listfile $(OUTPUT_DIR)/list.eval \
