@@ -12,7 +12,7 @@ LOCAL := $(PWD)/usr
 PATH := $(LOCAL)/bin:$(PATH)
 
 # Path to the .traineddata directory with traineddata suitable for training
-# (for example from tesseract-ocr/tessdata_best). Default: $(TESSDATA)
+# (for example from tesseract-ocr/tessdata_best). Default: $(LOCAL)/share/tessdata
 TESSDATA =  $(LOCAL)/share/tessdata
 
 # Name of the model to be built. Default: $(MODEL_NAME)
